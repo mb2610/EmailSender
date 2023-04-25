@@ -28,7 +28,7 @@ public class RateLimiter : IRateLimiter
     public Task<int> AvailableRate(string ipAddress)
     {
         return Task.FromResult(RequestCountPerIpAddress.TryGetValue(ipAddress, out var countSending)
-                                   ? countSending
+                                   ? MaxRequestPerInterval - countSending
                                    : MaxRequestPerInterval);
     }
 }
