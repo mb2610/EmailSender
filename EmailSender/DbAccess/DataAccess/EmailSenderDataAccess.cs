@@ -16,12 +16,12 @@ public class EmailSenderDataAccess : IEmailSenderDataAccess
 
         var results = senders.Select(sender => new EmailConfiguration
         {
-            Uid       = sender.Uid,
-            Port      = sender.Port,
-            Server    = sender.Host,
-            Email     = sender.Email,
-            Password  = sender.Password,
-            IpConfigs = sender.AllowedIpSender
+            Uid               = sender.Uid,
+            Port              = sender.Port,
+            Host              = sender.Host,
+            Email             = sender.Email,
+            Password          = sender.Password,
+            AllowedHostSender = sender.AllowedHostSender
         }).ToList();
 
         return results;

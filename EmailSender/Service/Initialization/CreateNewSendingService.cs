@@ -1,11 +1,8 @@
-﻿using Hangfire;
-using Hangfire.States;
-using MacroMail.DbAccess.DataAccess;
+﻿using MacroMail.DbAccess.DataAccess;
 using MacroMail.Models;
 using MacroMail.Models.Dto;
 using MacroMail.Service.Builder;
 using MacroMail.Service.Helper;
-using MacroMail.Service.Sending;
 using MacroMail.Service.Template;
 
 namespace MacroMail.Service.Initialization;
@@ -13,25 +10,22 @@ namespace MacroMail.Service.Initialization;
 public class CreateNewSendingService : ICreateNewSendingService
 {
     private readonly IGroupEmailMessageDataAccess _groupEmailMessageDataAccess;
-    private readonly ITrackingMessageDataAccess   _trackingMessageDataAccess;
+    private readonly IPendingMessageDataAccess    _pendingMessageDataAccess;
     private readonly IEmailConfigurationService   _emailConfigurationService;
     private readonly IMimeMessageBuilder          _mimeMessageBuilder;
     private readonly ITemplateRenderer            _templateRenderer;
-    private readonly IBackgroundJobClient         _backgroundJobClient;
 
     public CreateNewSendingService(IGroupEmailMessageDataAccess groupEmailMessageDataAccess,
-                                   ITrackingMessageDataAccess   trackingMessageDataAccess,
+                                   IPendingMessageDataAccess    pendingMessageDataAccess,
                                    IEmailConfigurationService   emailConfigurationService,
                                    IMimeMessageBuilder          mimeMessageBuilder,
-                                   ITemplateRenderer            templateRenderer,
-                                   IBackgroundJobClient         backgroundJobClient)
+                                   ITemplateRenderer            templateRenderer)
     {
         _groupEmailMessageDataAccess = groupEmailMessageDataAccess;
         _emailConfigurationService   = emailConfigurationService;
         _mimeMessageBuilder          = mimeMessageBuilder;
         _templateRenderer            = templateRenderer;
-        _backgroundJobClient         = backgroundJobClient;
-        _trackingMessageDataAccess   = trackingMessageDataAccess;
+        _pendingMessageDataAccess    = pendingMessageDataAccess;
     }
 
     public async Task<Guid> SendAsync(SendingRequest request, CancellationToken token)
@@ -54,13 +48,12 @@ public class CreateNewSendingService : ICreateNewSendingService
             Reply   = request.Reply
         };
         var mimeMessage = _mimeMessageBuilder.Build(emailMessage, emailConfiguration).Serialize();
-        await _trackingMessageDataAccess.CreateAsync(emailMessage.Uid, groupSendingUid, request.To.Uid,
-                                                     request.Ccs.Select(_ => _.Uid).ToArray(),
-                                                     mimeMessage, token);
+        await _pendingMessageDataAccess.CreateAsync(groupSendingUid,
+                                                    request.To.Uid,
+                                                    request.Ccs.Select(_ => _.Uid).ToArray(),
+                                                    mimeMessage,
+                                                    token);
 
-        var queue = new EnqueuedState("myQueueName");
-        _backgroundJobClient.Create<ISendingService>(job => job.SendAsync(emailMessage.Uid, CancellationToken.None), queue);
-        
         return groupSendingUid;
     }
 }

@@ -2,5 +2,5 @@
 
 public interface ISendingService
 {
-    Task SendAsync(Guid emailMessageUid, CancellationToken token);
+    Task SendAsync(Guid messageUid, CancellationToken token);
 }

@@ -13,7 +13,7 @@ public class GroupEmailMessageDataAccess : IGroupEmailMessageDataAccess
                                         string reply,       long   counter, CancellationToken token)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(token);
-        var groupEmailMessageDao = new GroupEmailMessageDao
+        var groupEmailMessageDao = new GroupMessageDao
         {
             Uid         = Guid.NewGuid(),
             ExternalUid = externalUid,
@@ -33,7 +33,7 @@ public class GroupEmailMessageDataAccess : IGroupEmailMessageDataAccess
     public async Task SetAsStartAsync(Guid groupUid, CancellationToken token)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(token);
-        var groupEmailMessage = new GroupEmailMessageDao
+        var groupEmailMessage = new GroupMessageDao
         {
             Uid       = groupUid,
             StartDate = DateTime.Now
@@ -47,7 +47,7 @@ public class GroupEmailMessageDataAccess : IGroupEmailMessageDataAccess
     public async Task SetAsFinishAsync(Guid groupUid, CancellationToken token)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(token);
-        var groupEmailMessage = new GroupEmailMessageDao
+        var groupEmailMessage = new GroupMessageDao
         {
             Uid        = groupUid,
             FinishDate = DateTime.Now

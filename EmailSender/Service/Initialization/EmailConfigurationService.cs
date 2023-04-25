@@ -37,4 +37,9 @@ public class EmailConfigurationService : IEmailConfigurationService
 
         return confAfterRetieveAll;
     }
+
+    public List<string> GetIps()
+    {
+        return _emailConfigurations.Values.SelectMany(x => x.AllowedHostSender).Distinct().ToList();
+    }
 }

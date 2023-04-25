@@ -11,4 +11,6 @@ public class SendingRequest
     [Required] public ContactRequest              To      { get; set; }
     [Required] public IEnumerable<ContactRequest> Ccs     { get; set; }
     public            IDictionary<string, object> Data    { get; set; }
+    
+    public int Priority { get; set; }
 }

@@ -13,67 +13,56 @@ public class TrackingMessageDataAccess : ITrackingMessageDataAccess
         _contextFactory = contextFactory;
     }
 
-    public async Task CreateAsync(Guid      trackingUid, Guid   groupUid,    string            externalUid,
-                                  string[]? externalCcs, byte[] mimeMessage, CancellationToken token)
+    public async Task CreateAsync(Guid              pendingMessageUid, string host, string ipAddress,
+                                  CancellationToken token)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(token);
-        var externalCCsJoin = externalCcs is null || !externalCcs.Any() ? "" : string.Join('|', externalCcs);
-        var trackingEmailMessage = new TrackingEmailMessageDao
+        var pendingMessage = await context.PendingEmails.SingleAsync(x => x.Uid == pendingMessageUid, token);
+
+        var trackingEmailMessage = new TrackingMessageDao
         {
-            Uid         = trackingUid,
-            GroupUid    = groupUid,
-            ExternalUid = externalUid,
-            ExternalCCs = externalCCsJoin,
-            MimeMessage = mimeMessage,
-            IsError     = false
+            Uid         = pendingMessage.Uid,
+            GroupUid    = pendingMessage.GroupUid,
+            ExternalUid = pendingMessage.ExternalUid,
+            ExternalCCs = pendingMessage.ExternalCCs,
+            MimeMessage = pendingMessage.MimeMessage,
+            SentDate    = DateTime.Now,
+            SentHost    = host
         };
         await context.TrackingEmails.AddAsync(trackingEmailMessage, token);
+        context.PendingEmails.Remove(pendingMessage);
         await context.SaveChangesAsync(token);
     }
 
-    public async Task SetAsSentAsync(Guid trackingUid, string ipAddress, CancellationToken token)
+    public async Task SetAsErrorSendingAsync(Guid pendingMessageUid, string errorMessage, CancellationToken token)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(token);
-        var trackingEmailMessage = new TrackingEmailMessageDao
+        var pendingMessage = await context.PendingEmails.SingleAsync(x => x.Uid == pendingMessageUid, token);
+
+        var trackingEmailMessage = new TrackingMessageDao
         {
-            Uid        = trackingUid,
-            SentDate   = DateTime.Now,
-            SentFromIp = ipAddress
+            Uid            = pendingMessage.Uid,
+            GroupUid       = pendingMessage.GroupUid,
+            ExternalUid    = pendingMessage.ExternalUid,
+            ExternalCCs    = pendingMessage.ExternalCCs,
+            MimeMessage    = pendingMessage.MimeMessage,
+            IsErrorSending = true,
+            ErrorMessage   = errorMessage
         };
-        context.TrackingEmails.Attach(trackingEmailMessage);
-        context.Entry(trackingEmailMessage).Property(x => x.SentDate).IsModified   = true;
-        context.Entry(trackingEmailMessage).Property(x => x.SentFromIp).IsModified = true;
-
-        await context.SaveChangesAsync(token);
-    }
-
-    public async Task SetAsErrorSendingAsync(Guid trackingUid, string errorMessage, CancellationToken token)
-    {
-        await using var context = await _contextFactory.CreateDbContextAsync(token);
-        var trackingEmailMessage = new TrackingEmailMessageDao
-        {
-            Uid          = trackingUid,
-            ErrorMessage = errorMessage,
-            IsError      = true
-        };
-        context.TrackingEmails.Attach(trackingEmailMessage);
-        context.Entry(trackingEmailMessage).Property(_ => _.IsError).IsModified      = true;
-        context.Entry(trackingEmailMessage).Property(_ => _.ErrorMessage).IsModified = true;
-
+        await context.TrackingEmails.AddAsync(trackingEmailMessage, token);
+        context.PendingEmails.Remove(pendingMessage);
         await context.SaveChangesAsync(token);
     }
 
     public async Task SetAsReadAsync(Guid trackingUid, CancellationToken token)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(token);
-        var trackingEmailMessage = new TrackingEmailMessageDao
-        {
-            Uid            = trackingUid,
-            LastOpenedDate = DateTime.Now
-        };
-        context.TrackingEmails.Attach(trackingEmailMessage);
-        context.Entry(trackingEmailMessage).Property(_ => _.LastOpenedDate).IsModified = true;
+        var trackingEmailMessage = await context.TrackingEmails.SingleAsync(x => x.Uid == trackingUid, token);
 
+        trackingEmailMessage.LastOpenedDate = DateTime.Now;
+        trackingEmailMessage.NumberOpening++;
+
+        context.TrackingEmails.Update(trackingEmailMessage);
         await context.SaveChangesAsync(token);
     }
 
