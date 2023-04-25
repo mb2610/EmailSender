@@ -13,7 +13,8 @@ public class RetrievePendingMessageService : IRetrievePendingMessageService
 
     public RetrievePendingMessageService(IBackgroundJobClient       backgroundJobClient,
                                          IPendingMessageDataAccess  pendingMessageDataAccess,
-                                         IEmailConfigurationService emailConfigurationService, IRateLimiter rateLimiter)
+                                         IEmailConfigurationService emailConfigurationService,
+                                         IRateLimiter               rateLimiter)
     {
         _backgroundJobClient       = backgroundJobClient;
         _pendingMessageDataAccess  = pendingMessageDataAccess;
@@ -34,9 +35,12 @@ public class RetrievePendingMessageService : IRetrievePendingMessageService
             var availableMessages =
                 await _pendingMessageDataAccess.GetAvailableMessage(ipAddress, availableNumber, token);
 
+            if (!availableMessages.Any())
+                continue;
+
             foreach (var availableMessage in availableMessages)
                 _backgroundJobClient.Enqueue<ISendingService>(
-                    job => job.SendAsync(availableMessage.Uid, CancellationToken.None));
+                    job => job.SendAsync(availableMessage, CancellationToken.None));
         }
     }
 }

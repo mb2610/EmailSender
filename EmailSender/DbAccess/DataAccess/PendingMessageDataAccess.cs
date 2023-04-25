@@ -10,7 +10,7 @@ public class PendingMessageDataAccess : IPendingMessageDataAccess
 
     public PendingMessageDataAccess(IDbContextFactory<DataContext> contextFactory) { _contextFactory = contextFactory; }
 
-    public async Task<ICollection<PendingMessageDao>> GetAvailableMessage(
+    public async Task<ICollection<Guid>> GetAvailableMessage(
         string host, int number, CancellationToken token = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(token);
@@ -24,7 +24,10 @@ public class PendingMessageDataAccess : IPendingMessageDataAccess
                                        .Take(number)
                                        .ToListAsync(token);
 
-        return pendingList;
+        // TODO ASSIGNE
+        // TO NOT TAKE IT AGAIN
+        
+        return pendingList.Select(x => x.Uid).ToList();
     }
 
     public async Task<Guid> CreateAsync(Guid              groupUid,

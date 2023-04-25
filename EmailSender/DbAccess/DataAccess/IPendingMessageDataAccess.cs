@@ -1,5 +1,4 @@
 ﻿using MacroMail.Models;
-using MacroMail.Models.Dao;
 
 namespace MacroMail.DbAccess.DataAccess;
 
@@ -12,7 +11,7 @@ public interface IPendingMessageDataAccess
     /// <param name="number">Number of pending message (example 10)</param>
     /// <param name="token"></param>
     /// <returns></returns>
-    Task<ICollection<PendingMessageDao>>
+    Task<ICollection<Guid>>
         GetAvailableMessage(string host, int number, CancellationToken token = default);
 
     Task<Guid> CreateAsync(Guid              groupUid,
