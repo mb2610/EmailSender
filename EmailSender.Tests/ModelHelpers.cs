@@ -30,14 +30,15 @@ public static class ModelHelpers
                                                              .RuleFor(_ => _.Data,
                                                                       f => new Dictionary<string, object>());
 
-    public static Faker<EmailConfiguration> EmailConfigurationFaker = new Faker<EmailConfiguration>()
-                                                                     .StrictMode(true)
-                                                                     .RuleFor(_ => _.Uid, f => Guid.NewGuid())
-                                                                     .RuleFor(_ => _.Server,
-                                                                              f => f.Internet.DomainName())
-                                                                     .RuleFor(_ => _.Port, f => f.Internet.Port())
-                                                                     .RuleFor(_ => _.Email, f => f.Internet.Email())
-                                                                     .RuleFor(_ => _.Password,
-                                                                              f => f.Internet.Password())
-                                                                     .RuleFor(_ => _.IpConfigs, f => f.Internet.Ip());
+    public static Faker<EmailConfiguration> EmailConfigurationFaker
+        = new Faker<EmailConfiguration>()
+         .StrictMode(true)
+         .RuleFor(_ => _.Uid, f => Guid.NewGuid())
+         .RuleFor(_ => _.Host,
+                  f => f.Internet.DomainName())
+         .RuleFor(_ => _.Port, f => f.Internet.Port())
+         .RuleFor(_ => _.Email, f => f.Internet.Email())
+         .RuleFor(_ => _.Password,
+                  f => f.Internet.Password())
+         .RuleFor(_ => _.AllowedHostSender, f => new[] { f.Internet.Ip(), f.Internet.Ip() });
 }
