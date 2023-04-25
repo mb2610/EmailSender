@@ -26,15 +26,14 @@ public class RetrievePendingMessageServiceTests
             backgroundJobClient, pendingMessageDataAccess,
             emailConfigurationService, rateLimiter);
         emailConfigurationService.GetIps().Returns(new List<string> { ipAddress });
-        rateLimiter.TryGetValue(ipAddress).Returns(false);
+        rateLimiter.AvailableRate(ipAddress).Returns(0);
 
         // Act
         await retrievePendingMessageService.RetrievePendingMessageJob(CancellationToken.None);
 
         // Assert
         emailConfigurationService.GetIps();
-        await rateLimiter.Received(1).TryGetValue(ipAddress);
-        await rateLimiter.DidNotReceive().AvailableRate(ipAddress);
+        await rateLimiter.Received(1).AvailableRate(ipAddress);
         await pendingMessageDataAccess.DidNotReceive()
                                       .GetAvailableMessage(ipAddress, Arg.Any<int>(), CancellationToken.None);
         backgroundJobClient.DidNotReceiveWithAnyArgs();
@@ -56,7 +55,6 @@ public class RetrievePendingMessageServiceTests
             emailConfigurationService, rateLimiter);
 
         emailConfigurationService.GetIps().Returns(new List<string> { ipAddress });
-        rateLimiter.TryGetValue(ipAddress).Returns(true);
         rateLimiter.AvailableRate(ipAddress).Returns(1);
         pendingMessageDataAccess.GetAvailableMessage(ipAddress, 1, CancellationToken.None)
                                 .Returns(Array.Empty<Guid>());
@@ -66,7 +64,6 @@ public class RetrievePendingMessageServiceTests
 
         // Assert
         emailConfigurationService.GetIps();
-        await rateLimiter.Received(1).TryGetValue(ipAddress);
         await rateLimiter.Received(1).AvailableRate(ipAddress);
         await pendingMessageDataAccess.Received(1).GetAvailableMessage(ipAddress, 1, CancellationToken.None);
         backgroundJobClient.DidNotReceiveWithAnyArgs();
@@ -89,7 +86,6 @@ public class RetrievePendingMessageServiceTests
             emailConfigurationService, rateLimiter);
 
         emailConfigurationService.GetIps().Returns(new List<string> { ipAddress });
-        rateLimiter.TryGetValue(ipAddress).Returns(true);
         rateLimiter.AvailableRate(ipAddress).Returns(1);
         pendingMessageDataAccess.GetAvailableMessage(ipAddress, 1, CancellationToken.None)
                                 .Returns(new[] { pendingEmail });
@@ -99,15 +95,15 @@ public class RetrievePendingMessageServiceTests
 
         // Assert
         emailConfigurationService.GetIps();
-        await rateLimiter.Received(1).TryGetValue(ipAddress);
         await rateLimiter.Received(1).AvailableRate(ipAddress);
         await pendingMessageDataAccess.Received(1).GetAvailableMessage(ipAddress, 1, CancellationToken.None);
         backgroundJobClient.Received(1).Create(Arg.Is<Job>(job =>
                                                                job.Type           == typeof(ISendingService)
                                                                && job.Method.Name == "SendAsync"
-                                                               && job.Args.Count  == 2
+                                                               && job.Args.Count  == 3
                                                                && job.Args[0].Equals(pendingEmail)
-                                                               && job.Args[1].Equals(CancellationToken.None)),
+                                                               && job.Args[1].Equals(ipAddress)
+                                                               && job.Args[2].Equals(CancellationToken.None)),
                                                Arg.Any<EnqueuedState>());
     }
 
@@ -127,7 +123,6 @@ public class RetrievePendingMessageServiceTests
             emailConfigurationService, rateLimiter);
 
         emailConfigurationService.GetIps().Returns(new List<string> { ipAddress });
-        rateLimiter.TryGetValue(ipAddress).Returns(true);
         rateLimiter.AvailableRate(ipAddress).Returns(250);
         pendingMessageDataAccess.GetAvailableMessage(ipAddress, 250, CancellationToken.None)
                                 .Returns(Enumerable.Range(0, 250).Select(_ => Guid.NewGuid()).ToList());
@@ -137,7 +132,6 @@ public class RetrievePendingMessageServiceTests
 
         // Assert
         emailConfigurationService.GetIps();
-        await rateLimiter.Received(1).TryGetValue(ipAddress);
         await rateLimiter.Received(1).AvailableRate(ipAddress);
         await pendingMessageDataAccess.Received(1).GetAvailableMessage(ipAddress, 250, CancellationToken.None);
         backgroundJobClient.Received(250).Create(Arg.Any<Job>(), Arg.Any<EnqueuedState>());

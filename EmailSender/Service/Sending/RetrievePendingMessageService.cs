@@ -27,11 +27,10 @@ public class RetrievePendingMessageService : IRetrievePendingMessageService
         var ipAddresses = _emailConfigurationService.GetIps();
         foreach (var ipAddress in ipAddresses)
         {
-            var availableIp = await _rateLimiter.TryGetValue(ipAddress);
-            if (!availableIp)
+            var availableNumber = await _rateLimiter.AvailableRate(ipAddress);
+            if (availableNumber <= 0)
                 continue;
 
-            var availableNumber = await _rateLimiter.AvailableRate(ipAddress);
             var availableMessages =
                 await _pendingMessageDataAccess.GetAvailableMessage(ipAddress, availableNumber, token);
 
@@ -40,7 +39,7 @@ public class RetrievePendingMessageService : IRetrievePendingMessageService
 
             foreach (var availableMessage in availableMessages)
                 _backgroundJobClient.Enqueue<ISendingService>(
-                    job => job.SendAsync(availableMessage, CancellationToken.None));
+                    job => job.SendAsync(availableMessage, ipAddress, CancellationToken.None));
         }
     }
 }

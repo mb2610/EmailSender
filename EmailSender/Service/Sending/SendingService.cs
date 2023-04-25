@@ -5,6 +5,7 @@ using MacroMail.Models.Exception;
 using MacroMail.Service.Builder;
 using MacroMail.Service.Initialization;
 using MailKit.Net.Smtp;
+using MimeKit;
 
 namespace MacroMail.Service.Sending;
 
@@ -13,13 +14,13 @@ public class SendingService : ISendingService
     private readonly IRateLimiter               _rateLimiter;
     private readonly IEmailConfigurationService _emailConfigurationService;
     private readonly IPendingMessageDataAccess  _pendingMessageDataAccess;
-    private readonly TrackingMessageDataAccess  _trackingMessageDataAccess;
+    private readonly ITrackingMessageDataAccess _trackingMessageDataAccess;
     private readonly IMimeMessageBuilder        _mimeMessageBuilder;
 
     public SendingService(IRateLimiter               rateLimiter,
                           IEmailConfigurationService emailConfigurationService,
                           IMimeMessageBuilder        mimeMessageBuilder,
-                          TrackingMessageDataAccess  trackingMessageDataAccess,
+                          ITrackingMessageDataAccess trackingMessageDataAccess,
                           IPendingMessageDataAccess  pendingMessageDataAccess)
     {
         _emailConfigurationService = emailConfigurationService;
@@ -29,7 +30,7 @@ public class SendingService : ISendingService
         _pendingMessageDataAccess  = pendingMessageDataAccess;
     }
 
-    public async Task SendAsync(Guid messageUid, CancellationToken token)
+    public async Task SendAsync(Guid messageUid, string ipAddress, CancellationToken token)
     {
         var emailMessage = await _pendingMessageDataAccess.GetAsync(messageUid, token);
         if (emailMessage is null)
@@ -39,25 +40,49 @@ public class SendingService : ISendingService
         if (emailConfiguration is null)
             throw new NotFoundEmailConfigurationException(emailMessage.Sender);
 
+        var message      = _mimeMessageBuilder.Build(emailMessage, emailConfiguration);
+        var canSendEmail = await _rateLimiter.TryGetValue(ipAddress);
+        if (!canSendEmail)
+            throw new NotFoundEmailConfigurationException(emailMessage.Sender);
+
         try
         {
-            var ipAddress = await GetAvailableIpAddress(emailConfiguration);
-            var message   = _mimeMessageBuilder.Build(emailMessage, emailConfiguration);
-
-            using var emailClient = new SmtpClient();
-            // client.LocalDomain = "20.188.39.114";
-            emailClient.LocalEndPoint = CreateIpEndPoint(ipAddress, 0);
-            await emailClient.ConnectAsync(emailConfiguration.Host, emailConfiguration.Port, true, token);
-            await emailClient.AuthenticateAsync(emailConfiguration.Email, emailConfiguration.Password, token);
-            await emailClient.SendAsync(message, token);
-            await emailClient.DisconnectAsync(true, token);
-
+            await SendEmail(ipAddress, emailConfiguration, message, token);
             await _trackingMessageDataAccess.CreateAsync(messageUid, ipAddress, ipAddress, token);
         }
-        catch (SendingNotAllowForEmailException e)
+        catch (Exception e)
         {
-            await _trackingMessageDataAccess.SetAsErrorSendingAsync(messageUid, e.Message + e.StackTrace, token);
+            await _trackingMessageDataAccess.SetAsErrorSendingAsync(
+                messageUid, e.Message + e.StackTrace, token);
         }
+    }
+
+    private static async Task SendEmail(string             ipAddress,
+                                        EmailConfiguration emailConfiguration,
+                                        MimeMessage        message,
+                                        CancellationToken  token = default)
+    {
+        var tentative = 0;
+        do
+        {
+            try
+            {
+                using var emailClient = new SmtpClient();
+                emailClient.LocalEndPoint = CreateIpEndPoint(ipAddress, 0); // client.LocalDomain = "20.188.39.114";
+                await emailClient.ConnectAsync(emailConfiguration.Host, emailConfiguration.Port, true, token);
+                await emailClient.AuthenticateAsync(emailConfiguration.Email, emailConfiguration.Password, token);
+                await emailClient.SendAsync(message, token);
+                await emailClient.DisconnectAsync(true, token);
+                return;
+            }
+            catch (Exception e)
+            {
+                if (tentative == 3)
+                    throw;
+            }
+
+            tentative++;
+        } while (true);
     }
 
     private static IPEndPoint CreateIpEndPoint(string ipAddress, int port)
@@ -68,17 +93,5 @@ public class SendingService : ISendingService
         }
 
         return new IPEndPoint(ip, port);
-    }
-
-    private async Task<string> GetAvailableIpAddress(EmailConfiguration emailConfiguration)
-    {
-        foreach (var ipConfig in emailConfiguration.AllowedHostSender)
-        {
-            var availableIp = await _rateLimiter.TryGetValue(ipConfig);
-            if (availableIp)
-                return ipConfig;
-        }
-
-        throw new SendingNotAllowForEmailException(emailConfiguration.Uid);
     }
 }
