@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EmailSender", "EmailSender\EmailSender.csproj", "{E41BEB9B-F9E6-481C-AB1C-3825F3ACD17A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EmailSender.Tests", "EmailSender.Tests\EmailSender.Tests.csproj", "{42D8494C-C9D9-4A23-A627-46083F268643}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E41BEB9B-F9E6-481C-AB1C-3825F3ACD17A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E41BEB9B-F9E6-481C-AB1C-3825F3ACD17A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E41BEB9B-F9E6-481C-AB1C-3825F3ACD17A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E41BEB9B-F9E6-481C-AB1C-3825F3ACD17A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{42D8494C-C9D9-4A23-A627-46083F268643}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{42D8494C-C9D9-4A23-A627-46083F268643}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{42D8494C-C9D9-4A23-A627-46083F268643}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{42D8494C-C9D9-4A23-A627-46083F268643}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
