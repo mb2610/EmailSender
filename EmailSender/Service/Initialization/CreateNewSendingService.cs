@@ -44,13 +44,13 @@ public class CreateNewSendingService : ICreateNewSendingService
             Subject = request.Subject,
             Content = generatedContent,
             To      = request.To.Email,
-            Ccs     = request.Ccs.Select(_ => _.Email).ToArray(),
+            Ccs     = request.Ccs?.Select(_ => _.Email)?.ToArray() ?? Array.Empty<string>(),
             Reply   = request.Reply
         };
         var mimeMessage = _mimeMessageBuilder.Build(emailMessage, emailConfiguration).Serialize();
         await _pendingMessageDataAccess.CreateAsync(groupSendingUid,
                                                     request.To.Uid,
-                                                    request.Ccs.Select(_ => _.Uid).ToArray(),
+                                                    request.Ccs?.Select(_ => _.Uid)?.ToArray() ?? Array.Empty<string>(),
                                                     mimeMessage,
                                                     token);
 
