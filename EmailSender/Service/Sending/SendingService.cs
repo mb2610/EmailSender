@@ -1,10 +1,8 @@
-﻿using System.Net;
-using MacroMail.DbAccess.DataAccess;
+﻿using MacroMail.DbAccess.DataAccess;
 using MacroMail.Models.Configuration;
 using MacroMail.Models.Exception;
 using MacroMail.Service.Builder;
 using MacroMail.Service.Initialization;
-using MailKit.Net.Smtp;
 using MimeKit;
 
 namespace MacroMail.Service.Sending;
@@ -16,18 +14,21 @@ public class SendingService : ISendingService
     private readonly IPendingMessageDataAccess  _pendingMessageDataAccess;
     private readonly ITrackingMessageDataAccess _trackingMessageDataAccess;
     private readonly IMimeMessageBuilder        _mimeMessageBuilder;
+    private readonly ISmtpClient                _smtpClient;
 
     public SendingService(IRateLimiter               rateLimiter,
                           IEmailConfigurationService emailConfigurationService,
                           IMimeMessageBuilder        mimeMessageBuilder,
                           ITrackingMessageDataAccess trackingMessageDataAccess,
-                          IPendingMessageDataAccess  pendingMessageDataAccess)
+                          IPendingMessageDataAccess  pendingMessageDataAccess,
+                          ISmtpClient                smtpClient)
     {
         _emailConfigurationService = emailConfigurationService;
         _mimeMessageBuilder        = mimeMessageBuilder;
         _rateLimiter               = rateLimiter;
         _trackingMessageDataAccess = trackingMessageDataAccess;
         _pendingMessageDataAccess  = pendingMessageDataAccess;
+        _smtpClient                = smtpClient;
     }
 
     public async Task SendAsync(Guid messageUid, string ipAddress, CancellationToken token)
@@ -57,41 +58,26 @@ public class SendingService : ISendingService
         }
     }
 
-    private static async Task SendEmail(string             ipAddress,
-                                        EmailConfiguration emailConfiguration,
-                                        MimeMessage        message,
-                                        CancellationToken  token = default)
+    private async Task SendEmail(string             ipAddress,
+                                 EmailConfiguration emailConfiguration,
+                                 MimeMessage        message,
+                                 CancellationToken  token = default)
     {
         var tentative = 0;
         do
         {
             try
             {
-                using var emailClient = new SmtpClient();
-                emailClient.LocalEndPoint = CreateIpEndPoint(ipAddress, 0); // client.LocalDomain = "20.188.39.114";
-                await emailClient.ConnectAsync(emailConfiguration.Host, emailConfiguration.Port, true, token);
-                await emailClient.AuthenticateAsync(emailConfiguration.Email, emailConfiguration.Password, token);
-                await emailClient.SendAsync(message, token);
-                await emailClient.DisconnectAsync(true, token);
+                await _smtpClient.SendAsync(emailConfiguration, ipAddress, message, token);
                 return;
             }
             catch (Exception e)
             {
-                if (tentative == 3)
+                if (tentative == 2)
                     throw;
             }
 
             tentative++;
         } while (true);
-    }
-
-    private static IPEndPoint CreateIpEndPoint(string ipAddress, int port)
-    {
-        if (!IPAddress.TryParse(ipAddress, out var ip))
-        {
-            throw new FormatException("Invalid ip-adress");
-        }
-
-        return new IPEndPoint(ip, port);
     }
 }
