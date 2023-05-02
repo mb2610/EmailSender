@@ -1,4 +1,5 @@
 ﻿using Hangfire;
+using Hangfire.States;
 using MacroMail.DbAccess.DataAccess;
 using MacroMail.Service.Initialization;
 
@@ -37,9 +38,11 @@ public class RetrievePendingMessageService : IRetrievePendingMessageService
             if (!availableMessages.Any())
                 continue;
 
+            var hostName = System.Net.Dns.GetHostName();
             foreach (var availableMessage in availableMessages)
-                _backgroundJobClient.Enqueue<ISendingService>(
-                    job => job.SendAsync(availableMessage, ipAddress, CancellationToken.None));
+                _backgroundJobClient.Create<ISendingService>(
+                    job => job.SendAsync(availableMessage, ipAddress, CancellationToken.None),
+                    new EnqueuedState(hostName));
         }
     }
 }
